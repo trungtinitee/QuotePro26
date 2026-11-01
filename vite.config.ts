@@ -5,6 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    base: '/QuotePro26/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
@@ -28,4 +29,3 @@ export default defineConfig(() => {
     },
   };
 });
-sửa lại như nào?
