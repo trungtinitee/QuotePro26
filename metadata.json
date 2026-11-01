@@ -1,0 +1,6 @@
+{
+  "name": "QuotePro - Quản lý & Tạo báo giá chuyên nghiệp",
+  "description": "Ứng dụng web chuyên nghiệp quản lý đơn giá, lập báo giá kinh tế, phân tích biên lợi nhuận, và tạo bộ hồ sơ hợp đồng - nghiệm thu - thanh lý chuẩn mẫu in ấn và xuất Word/PDF.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
