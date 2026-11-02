@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Layers,
   Sparkles,
+  Download,
 } from 'lucide-react';
 import { TabType } from '../types';
 
@@ -31,6 +32,7 @@ export const Header: React.FC = () => {
     exportPricesJson,
     importPricesJson,
     clearAllPrices,
+    showToast,
   } = useApp();
 
   const [menuOpen, setMenuOpen] = useState(false);

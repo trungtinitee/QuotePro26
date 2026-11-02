@@ -23,58 +23,66 @@ textarea.auto-grow,
 @media print {
   @page {
     size: A4 portrait;
-    margin: 10mm 12mm 12mm 12mm;
+    margin: 15mm 15mm 15mm 20mm;
   }
 
   html, body {
     background: #ffffff !important;
-    color: #1F2A27 !important;
+    color: #000000 !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    font-family: Arial, Helvetica, sans-serif !important;
   }
 
-  /* Hide screen elements during print */
-  body * {
-    visibility: hidden;
-  }
-
-  #print-root, #print-root * {
-    visibility: visible;
-    font-family: Arial, Helvetica, 'Nimbus Sans L', sans-serif !important;
-  }
-
-  #dossier-print-root, #dossier-print-root * {
-    visibility: visible;
+  /* Natural pagination without clipping */
+  #dossier-print-root {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    transform: none !important;
     font-family: 'Times New Roman', Times, serif !important;
+    font-size: 13pt !important;
+    line-height: 1.4 !important;
+  }
+
+  #dossier-print-root * {
+    font-family: 'Times New Roman', Times, serif !important;
+    color: #000000 !important;
   }
 
   #print-root {
-    position: absolute;
-    left: 0;
-    top: 0;
+    display: block !important;
+    position: static !important;
     width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
-    display: block !important;
+    box-shadow: none !important;
+    border: none !important;
     background: #ffffff !important;
     color: #1F2A27 !important;
+    font-family: Arial, Helvetica, 'Nimbus Sans L', sans-serif !important;
   }
 
-  #dossier-print-root {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 5mm 10mm !important;
-    display: block !important;
-    background: #ffffff !important;
-    color: #111111 !important;
-    box-sizing: border-box !important;
+  /* In-place editing visual cues stripped during print */
+  #dossier-print-root [contenteditable],
+  #dossier-print-root .outline-dashed,
+  .editable-a4-block {
+    outline: none !important;
+    border: none !important;
+    background: transparent !important;
   }
 
   table {
@@ -91,7 +99,9 @@ textarea.auto-grow,
     break-inside: avoid !important;
   }
 
-  .break-inside-avoid {
+  .break-inside-avoid,
+  .dossier-sign-grid,
+  .dossier-party {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }

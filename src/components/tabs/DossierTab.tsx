@@ -41,6 +41,55 @@ export const DOSSIER_TYPES = [
   { id: 'paymentRequest', name: 'Giấy đề nghị thanh toán', short: 'Đề nghị TT', code: 'GĐNTT' },
 ];
 
+const EditableA4Block: React.FC<{
+  blockKey: string;
+  defaultText: string;
+  isEditing: boolean;
+  className?: string;
+  tag?: 'div' | 'p' | 'span';
+  onSave: (key: string, text: string) => void;
+  savedText?: string;
+}> = ({
+  blockKey,
+  defaultText,
+  isEditing,
+  className = '',
+  tag: Tag = 'div',
+  onSave,
+  savedText,
+}) => {
+  const content = savedText !== undefined && savedText !== null ? savedText : defaultText;
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current && document.activeElement !== ref.current) {
+      ref.current.innerText = content;
+    }
+  }, [content, blockKey]);
+
+  return (
+    <Tag
+      ref={ref as any}
+      contentEditable={isEditing}
+      suppressContentEditableWarning
+      onBlur={(e) => {
+        const text = e.currentTarget.innerText;
+        if (text !== content) {
+          onSave(blockKey, text);
+        }
+      }}
+      className={`${className} ${
+        isEditing
+          ? 'outline-dashed outline-1 outline-amber-500 hover:outline-amber-600 bg-amber-50/40 hover:bg-amber-50/70 p-1.5 rounded cursor-text transition whitespace-pre-wrap'
+          : 'whitespace-pre-wrap'
+      }`}
+      title={isEditing ? 'Nhấp chuột để sửa nội dung văn bản trực tiếp trên trang A4' : undefined}
+    >
+      {content}
+    </Tag>
+  );
+};
+
 export const DossierTab: React.FC = () => {
   const { currentQuote, updateCurrentQuote, company, showToast, saveQuote } = useApp();
   const [activeType, setActiveType] = useState<string>('contract');
@@ -265,14 +314,20 @@ export const DossierTab: React.FC = () => {
 
   // Export Word single dossier document
   const handleExportWord = async () => {
-    if (!previewRef.current) return;
     try {
       const currentDoc = DOSSIER_TYPES.find((d) => d.id === activeType)?.name || 'Hồ sơ';
       const filename = `${DOSSIER_TYPES.find((d) => d.id === activeType)?.code || 'HS'}_${dossier.common.contractNo || 'QuotePro'}`.replace(
         /[^\w\-]+/g,
         '_'
       );
-      await exportDossierDocToWord(currentDoc, previewRef.current.innerHTML, filename);
+      await exportDossierDocToWord(
+        activeType,
+        dossier,
+        currentQuote,
+        company,
+        grandTotal,
+        filename
+      );
       showToast(`Đã xuất thành công ${currentDoc} sang file Word (.docx) chuẩn thể thức.`);
     } catch (e: any) {
       console.error(e);
@@ -383,9 +438,9 @@ export const DossierTab: React.FC = () => {
   const activeDocMeta = DOSSIER_TYPES.find((d) => d.id === activeType) || DOSSIER_TYPES[0];
 
   return (
-    <div className="space-y-4 sm:space-y-6 pb-12">
+    <div className="space-y-4 sm:space-y-6 pb-12 print:p-0 print:m-0 print:space-y-0 print:pb-0">
       {/* 1. Header Toolbar (Responsive PC/Tablet/Phone) */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 sm:p-5">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 sm:p-5 print:hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 shadow-inner">
@@ -456,7 +511,7 @@ export const DossierTab: React.FC = () => {
       </div>
 
       {/* 2. Document Selection Tabs (Responsive horizontal slider on phone) */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-2 sm:p-2.5">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-2 sm:p-2.5 print:hidden">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
           {DOSSIER_TYPES.map((d, index) => {
             const isActive = activeType === d.id;
@@ -487,7 +542,7 @@ export const DossierTab: React.FC = () => {
       </div>
 
       {/* 3. Common Project Data Card (Collapsible) */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden print:hidden">
         <button
           type="button"
           onClick={() => setCommonExpanded(!commonExpanded)}
@@ -718,7 +773,7 @@ export const DossierTab: React.FC = () => {
       </div>
 
       {/* 4. Action bar with Mode Switch & Inline Edit Toggle */}
-      <div className="bg-slate-100/80 p-2 sm:p-2.5 rounded-2xl flex flex-wrap items-center justify-between gap-2.5">
+      <div className="bg-slate-100/80 p-2 sm:p-2.5 rounded-2xl flex flex-wrap items-center justify-between gap-2.5 print:hidden">
         <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200">
           <button
             type="button"
@@ -810,7 +865,7 @@ export const DossierTab: React.FC = () => {
 
       {/* 5. Document Specific Form Mode */}
       {viewMode === 'form' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-6 space-y-4 animate-in fade-in duration-150">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-6 space-y-4 animate-in fade-in duration-150 print:hidden">
           <div className="border-b border-slate-100 pb-3">
             <h3 className="font-bold text-sm sm:text-base text-slate-800">
               Tùy chỉnh thông số văn bản: {activeDocMeta.name}
@@ -1008,7 +1063,34 @@ export const DossierTab: React.FC = () => {
       )}
 
       {/* 6. Live Administrative Document Preview (Realistic A4 Sheet) */}
-      <div className="w-full overflow-auto flex justify-center py-2 sm:py-4 bg-slate-100/60 rounded-2xl p-2 sm:p-4">
+      <div className="w-full overflow-auto flex flex-col items-center py-2 sm:py-4 bg-slate-100/60 rounded-2xl p-2 sm:p-4 print:p-0 print:m-0 print:bg-transparent print:rounded-none print:overflow-visible print:block print:w-full">
+        {isInlineEditing && (
+          <div className="w-full max-w-[210mm] bg-amber-50 border border-amber-300 text-amber-900 rounded-xl px-4 py-2.5 mb-3 flex flex-col sm:flex-row sm:items-center justify-between text-xs shadow-xs animate-in fade-in gap-2.5 shrink-0 print:hidden">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <span>
+                <strong>Chế độ sửa trực tiếp trên A4 đang bật:</strong> Nhấp vào bất kỳ đoạn văn bản, điều khoản có viền nét đứt màu vàng để chỉnh sửa trực tiếp. Sau khi sửa xong, nhấn <strong>Lưu hồ sơ</strong> để lưu lại.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={handleSaveToQuote}
+                className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold transition shadow-xs cursor-pointer"
+              >
+                Lưu hồ sơ
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsInlineEditing(false)}
+                className="px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 font-medium transition cursor-pointer"
+              >
+                Xong
+              </button>
+            </div>
+          </div>
+        )}
+
         <div
           ref={previewRef}
           id="dossier-print-root"
@@ -1019,7 +1101,7 @@ export const DossierTab: React.FC = () => {
             width: '210mm',
             minWidth: '680px',
           }}
-          className="bg-white text-slate-900 shadow-2xl p-6 sm:p-12 md:p-14 rounded-xs border border-slate-300/80 font-['Times_New_Roman',serif] text-[13pt] leading-[1.4] my-2 transition-all"
+          className="bg-white text-slate-900 shadow-2xl p-6 sm:p-12 md:p-14 rounded-xs border border-slate-300/80 font-['Times_New_Roman',serif] text-[13pt] leading-[1.4] my-2 transition-all print:p-0 print:m-0 print:border-none print:shadow-none print:w-full print:min-w-0 print:rounded-none print:my-0"
         >
           {/* Header Quốc hiệu - Tiêu ngữ & Đơn vị theo chuẩn Nghị định 30/2020/NĐ-CP */}
           <div className="grid grid-cols-2 gap-4 items-start mb-6 text-center">
@@ -1064,21 +1146,27 @@ export const DossierTab: React.FC = () => {
               </div>
 
               <div className="space-y-2 text-justify">
-                <div
-                  contentEditable={isInlineEditing}
-                  suppressContentEditableWarning
-                  onBlur={(e) => handleCustomTextChange('contract_basis', e.currentTarget.innerText)}
-                  className={`space-y-1 ${isInlineEditing ? 'outline-dashed outline-amber-400 p-1 rounded' : ''}`}
-                >
-                  <p>- Căn cứ Bộ Luật Dân sự số 91/2015/QH13 ngày 24 tháng 11 năm 2015 của Quốc hội nước Cộng hòa xã hội chủ nghĩa Việt Nam;</p>
-                  <p>- Căn cứ Luật Thương mại số 36/2005/QH11 ngày 14 tháng 06 năm 2005 của Quốc hội nước Cộng hòa xã hội chủ nghĩa Việt Nam;</p>
-                  <p>- Căn cứ vào Bảng báo giá đã được Bên A phê duyệt và chấp thuận ký hợp đồng;</p>
-                  <p>- Căn cứ vào nhu cầu thực tế của Bên A và năng lực đáp ứng của Bên B.</p>
-                </div>
+                <EditableA4Block
+                  blockKey="basis"
+                  defaultText={`- Căn cứ Bộ Luật Dân sự số 91/2015/QH13 ngày 24 tháng 11 năm 2015 của Quốc hội nước Cộng hòa xã hội chủ nghĩa Việt Nam;
+- Căn cứ Luật Thương mại số 36/2005/QH11 ngày 14 tháng 06 năm 2005 của Quốc hội nước Cộng hòa xã hội chủ nghĩa Việt Nam;
+- Căn cứ vào Bảng báo giá đã được Bên A phê duyệt và chấp thuận ký hợp đồng;
+- Căn cứ vào nhu cầu thực tế của Bên A và năng lực đáp ứng của Bên B.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_basis`]}
+                  className="space-y-1"
+                />
 
-                <p className="pt-2">
-                  Hôm nay, {dossierDateVN(dossier.common.contractDate)}, tại {dossier.common.location}, hai bên chúng tôi gồm có:
-                </p>
+                <EditableA4Block
+                  blockKey="intro"
+                  defaultText={`Hôm nay, ${dossierDateVN(dossier.common.contractDate)}, tại ${dossier.common.location}, hai bên chúng tôi gồm có:`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_intro`]}
+                  className="pt-2"
+                  tag="p"
+                />
 
                 {/* Parties */}
                 <div className="dossier-party space-y-1.5 my-3">
@@ -1104,9 +1192,14 @@ export const DossierTab: React.FC = () => {
 
                 {/* Article 1 */}
                 <div className="font-bold pt-2">Điều 1. Nội dung công việc và danh mục thiết bị</div>
-                <p>
-                  Bên B nhận thực hiện công việc {dossier.common.workTitle || dossier.common.project} cho Bên A theo chi tiết khối lượng, quy cách và đơn giá như sau:
-                </p>
+                <EditableA4Block
+                  blockKey="article1"
+                  defaultText={`Bên B nhận thực hiện công việc ${dossier.common.workTitle || dossier.common.project} cho Bên A theo chi tiết khối lượng, quy cách và đơn giá như sau:`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_article1`]}
+                  tag="p"
+                />
 
                 {renderDocumentTable()}
 
@@ -1119,48 +1212,62 @@ export const DossierTab: React.FC = () => {
 
                 {/* Article 2 */}
                 <div className="font-bold pt-2">Điều 2. Giá trị hợp đồng và Phương thức thanh toán</div>
-                <p>
-                  - Tổng giá trị hợp đồng trọn gói là: <strong>{money(grandTotal)}</strong> đồng (Bằng chữ: {numberToVietnameseWords(grandTotal)}). Giá trên đã bao gồm thuế GTGT, chi phí vận chuyển, lắp đặt, bảo hành và các chi phí liên quan.
-                </p>
-                <p>- Phương thức thanh toán: Chuyển khoản vào tài khoản ngân hàng của Bên B.</p>
-                <p>
-                  - Tiến độ thanh toán:
-                  <br />+ Đợt 1: Bên A tạm ứng {currentDocData.advanceRate ?? 30}% giá trị hợp đồng, tương đương <strong>{money(currentDocData.advanceAmount ?? Math.round((grandTotal * 30) / 100))}</strong> đồng ngay sau khi ký hợp đồng để Bên B chuẩn bị vật tư thiết bị.
-                  <br />+ Đợt 2: Bên A thanh toán {100 - (currentDocData.advanceRate ?? 30)}% giá trị còn lại, tương đương <strong>{money(currentDocData.remainingAmount ?? (grandTotal - Math.round((grandTotal * 30) / 100)))}</strong> đồng trong vòng {currentDocData.paymentDays || '05'} ngày làm việc kể từ ngày ký Biên bản nghiệm thu hoàn thành đưa vào sử dụng và nhận đầy đủ hóa đơn GTGT hợp lệ.
-                </p>
+                <EditableA4Block
+                  blockKey="article2"
+                  defaultText={`- Tổng giá trị hợp đồng trọn gói là: ${money(grandTotal)} đồng (Bằng chữ: ${numberToVietnameseWords(grandTotal)}). Giá trên đã bao gồm thuế GTGT, chi phí vận chuyển, lắp đặt, bảo hành và các chi phí liên quan.
+- Phương thức thanh toán: Chuyển khoản vào tài khoản ngân hàng của Bên B.
+- Tiến độ thanh toán:
++ Đợt 1: Bên A tạm ứng ${currentDocData.advanceRate ?? 30}% giá trị hợp đồng, tương đương ${money(currentDocData.advanceAmount ?? Math.round((grandTotal * 30) / 100))} đồng ngay sau khi ký hợp đồng để Bên B chuẩn bị vật tư thiết bị.
++ Đợt 2: Bên A thanh toán ${100 - (currentDocData.advanceRate ?? 30)}% giá trị còn lại, tương đương ${money(currentDocData.remainingAmount ?? (grandTotal - Math.round((grandTotal * 30) / 100)))} đồng trong vòng ${currentDocData.paymentDays || '05'} ngày làm việc kể từ ngày ký Biên bản nghiệm thu hoàn thành đưa vào sử dụng và nhận đầy đủ hóa đơn GTGT hợp lệ.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_article2`]}
+                />
 
                 {/* Article 3 */}
                 <div className="font-bold pt-2">Điều 3. Thời gian, tiến độ và địa điểm thực hiện</div>
-                <p>- Thời gian thi công, thực hiện: {dossier.common.executionPeriod}.</p>
-                <p>- Địa điểm bàn giao và lắp đặt: {dossier.common.location}.</p>
-                <p>- Thời hạn bảo hành: {dossier.common.warranty}.</p>
+                <EditableA4Block
+                  blockKey="article3"
+                  defaultText={`- Thời gian thi công, thực hiện: ${dossier.common.executionPeriod}.
+- Địa điểm bàn giao và lắp đặt: ${dossier.common.location}.
+- Thời hạn bảo hành: ${dossier.common.warranty}.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_article3`]}
+                />
 
                 {/* Article 4 */}
                 <div className="font-bold pt-2">Điều 4. Tiêu chuẩn kỹ thuật và nghiệm thu bàn giao</div>
-                <p>
-                  - Hàng hóa, thiết bị cung cấp mới 100%, đúng nhãn hiệu, chủng loại và các thông số kỹ thuật đã cam kết, có đầy đủ chứng chỉ chất lượng xuất xưởng CO/CQ (nếu có).
-                </p>
-                <p>
-                  - Sau khi hoàn thành lắp đặt, hai bên sẽ tiến hành chạy thử liên động và ký Biên bản nghiệm thu hoàn thành đưa vào sử dụng chính thức.
-                </p>
+                <EditableA4Block
+                  blockKey="article4"
+                  defaultText={`- Hàng hóa, thiết bị cung cấp mới 100%, đúng nhãn hiệu, chủng loại và các thông số kỹ thuật đã cam kết, có đầy đủ chứng chỉ chất lượng xuất xưởng CO/CQ (nếu có).
+- Sau khi hoàn thành lắp đặt, hai bên sẽ tiến hành chạy thử liên động và ký Biên bản nghiệm thu hoàn thành đưa vào sử dụng chính thức.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_article4`]}
+                />
 
                 {/* Article 5 */}
                 <div className="font-bold pt-2">Điều 5. Quyền và nghĩa vụ của các bên</div>
-                <p>
-                  - <strong>Quyền và nghĩa vụ của Bên A:</strong> Bàn giao mặt bằng thi công, cung cấp nguồn điện nước phục vụ thi công chạy thử; cử cán bộ giám sát và nghiệm thu; thực hiện thanh toán đúng tiến độ đã thỏa thuận.
-                </p>
-                <p>
-                  - <strong>Quyền và nghĩa vụ của Bên B:</strong> Cung cấp thiết bị, vật tư đúng chủng loại và tiến độ; thi công đảm bảo an toàn lao động và vệ sinh môi trường; xuất hóa đơn tài chính hợp lệ cho Bên A; chịu trách nhiệm bảo hành thiết bị theo đúng cam kết.
-                </p>
+                <EditableA4Block
+                  blockKey="article5"
+                  defaultText={`- Quyền và nghĩa vụ của Bên A: Bàn giao mặt bằng thi công, cung cấp nguồn điện nước phục vụ thi công chạy thử; cử cán bộ giám sát và nghiệm thu; thực hiện thanh toán đúng tiến độ đã thỏa thuận.
+- Quyền và nghĩa vụ của Bên B: Cung cấp thiết bị, vật tư đúng chủng loại và tiến độ; thi công đảm bảo an toàn lao động và vệ sinh môi trường; xuất hóa đơn tài chính hợp lệ cho Bên A; chịu trách nhiệm bảo hành thiết bị theo đúng cam kết.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_article5`]}
+                />
 
                 {/* Article 6 */}
                 <div className="font-bold pt-2">Điều 6. Điều khoản thi hành</div>
-                <p>
-                  - Hai bên cam kết thực hiện nghiêm túc mọi điều khoản đã thỏa thuận trong hợp đồng. Mọi sửa đổi, bổ sung phải được lập thành văn bản hoặc phụ lục hợp đồng.
-                </p>
-                <p>
-                  - Hợp đồng này có hiệu lực kể từ ngày ký và được lập thành {Number(dossier.common.copiesA || 2) + Number(dossier.common.copiesB || 2)} bản, Bên A giữ {dossier.common.copiesA || '02'} bản, Bên B giữ {dossier.common.copiesB || '02'} bản có giá trị pháp lý như nhau./.
-                </p>
+                <EditableA4Block
+                  blockKey="article6"
+                  defaultText={`- Hai bên cam kết thực hiện nghiêm túc mọi điều khoản đã thỏa thuận trong hợp đồng. Mọi sửa đổi, bổ sung phải được lập thành văn bản hoặc phụ lục hợp đồng.
+- Hợp đồng này có hiệu lực kể từ ngày ký và được lập thành ${Number(dossier.common.copiesA || 2) + Number(dossier.common.copiesB || 2)} bản, Bên A giữ ${dossier.common.copiesA || '02'} bản, Bên B giữ ${dossier.common.copiesB || '02'} bản có giá trị pháp lý như nhau./.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_article6`]}
+                />
               </div>
 
               {/* Signatures */}
@@ -1195,31 +1302,41 @@ export const DossierTab: React.FC = () => {
               </div>
 
               <div className="space-y-2 text-justify">
-                <p>
-                  Hôm nay, vào lúc {currentDocData.handoverTime || '09 giờ 00 phút'} ngày {formatDateVN(currentDocData.date || dossier.common.contractDate)}, tại {currentDocData.location || dossier.common.location}.
-                </p>
-                <p>Chúng tôi gồm các đại diện có mặt dưới đây:</p>
-
-                <div className="my-2 space-y-1">
-                  <p><strong>1. ĐẠI DIỆN BÊN GIAO (BÊN B):</strong> {dossier.common.partyB.name}</p>
-                  <p className="pl-4">- Ông/Bà: <strong>{currentDocData.senderName || dossier.common.partyB.rep}</strong> &nbsp;&nbsp;&nbsp;&nbsp; Chức vụ: {dossier.common.partyB.title || 'Kỹ thuật viên'}</p>
-                  <p><strong>2. ĐẠI DIỆN BÊN NHẬN (BÊN A):</strong> {dossier.common.partyA.name}</p>
-                  <p className="pl-4">- Ông/Bà: <strong>{currentDocData.receiverName || dossier.common.partyA.rep}</strong> &nbsp;&nbsp;&nbsp;&nbsp; Chức vụ: {dossier.common.partyA.title || 'Thủ kho / Phụ trách'}</p>
-                </div>
-
-                <p>Hai bên tiến hành kiểm đếm và giao nhận số lượng thiết bị, hàng hóa phục vụ thi công công trình theo bảng kê chi tiết dưới đây:</p>
+                <EditableA4Block
+                  blockKey="intro"
+                  defaultText={`Hôm nay, vào lúc ${currentDocData.handoverTime || '09 giờ 00 phút'} ngày ${formatDateVN(currentDocData.date || dossier.common.contractDate)}, tại ${currentDocData.location || dossier.common.location}.
+Chúng tôi gồm các đại diện có mặt dưới đây:
+1. ĐẠI DIỆN BÊN GIAO (BÊN B): ${dossier.common.partyB.name}
+- Ông/Bà: ${currentDocData.senderName || dossier.common.partyB.rep}        Chức vụ: ${dossier.common.partyB.title || 'Kỹ thuật viên'}
+2. ĐẠI DIỆN BÊN NHẬN (BÊN A): ${dossier.common.partyA.name}
+- Ông/Bà: ${currentDocData.receiverName || dossier.common.partyA.rep}        Chức vụ: ${dossier.common.partyA.title || 'Thủ kho / Phụ trách'}
+Hai bên tiến hành kiểm đếm và giao nhận số lượng thiết bị, hàng hóa phục vụ thi công công trình theo bảng kê chi tiết dưới đây:`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_intro`]}
+                />
 
                 {renderDocumentTable()}
 
                 <div className="font-bold pt-2">Ý kiến nhận xét &amp; Đánh giá ngoại quan:</div>
-                <p>
-                  - Toàn bộ thiết bị, vật tư được giao nhận đầy đủ về chủng loại và số lượng theo hợp đồng.
-                  <br />- Tình trạng hàng hóa: Mới 100%, nguyên đai nguyên kiện, không bị móp méo, trầy xước hay rách hỏng tem niêm phong.
-                  <br />- Kèm theo: Đầy đủ chứng chỉ CO/CQ và tài liệu hướng dẫn lắp đặt của nhà sản xuất.
-                </p>
-                <p>
-                  Kể từ thời điểm ký biên bản này, Bên A có trách nhiệm quản lý, bảo quản an toàn hàng hóa tại công trình. Biên bản được lập thành 02 bản, mỗi bên giữ 01 bản làm cơ sở thực hiện các bước tiếp theo./.
-                </p>
+                <EditableA4Block
+                  blockKey="remarks"
+                  defaultText={`- Toàn bộ thiết bị, vật tư được giao nhận đầy đủ về chủng loại và số lượng theo hợp đồng.
+- Tình trạng hàng hóa: Mới 100%, nguyên đai nguyên kiện, không bị móp méo, trầy xước hay rách hỏng tem niêm phong.
+- Kèm theo: Đầy đủ chứng chỉ CO/CQ và tài liệu hướng dẫn lắp đặt của nhà sản xuất.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_remarks`]}
+                />
+
+                <EditableA4Block
+                  blockKey="conclusion"
+                  defaultText={`Kể từ thời điểm ký biên bản này, Bên A có trách nhiệm quản lý, bảo quản an toàn hàng hóa tại công trình. Biên bản được lập thành 02 bản, mỗi bên giữ 01 bản làm cơ sở thực hiện các bước tiếp theo./.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_conclusion`]}
+                  tag="p"
+                />
               </div>
 
               <div className="dossier-sign-grid grid grid-cols-2 gap-8 text-center mt-8 pt-4 break-inside-avoid">
@@ -1253,30 +1370,49 @@ export const DossierTab: React.FC = () => {
               </div>
 
               <div className="space-y-2 text-justify">
-                <p>- Căn cứ Hợp đồng kinh tế số: {dossier.common.contractNo} ngày {formatDateVN(dossier.common.contractDate)};</p>
-                <p>- Căn cứ quá trình vận chuyển và tập kết thiết bị tại hiện trường công trình {dossier.common.location}.</p>
+                <EditableA4Block
+                  blockKey="basis"
+                  defaultText={`- Căn cứ Hợp đồng kinh tế số: ${dossier.common.contractNo} ngày ${formatDateVN(dossier.common.contractDate)};
+- Căn cứ quá trình vận chuyển và tập kết thiết bị tại hiện trường công trình ${dossier.common.location}.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_basis`]}
+                />
 
-                <p className="pt-2">Hôm nay, ngày {formatDateVN(currentDocData.date || dossier.common.contractDate)}, các bên gồm có:</p>
-                <div className="my-2 space-y-1">
-                  <p><strong>1. Bên bàn giao (Bên B):</strong> {dossier.common.partyB.name} - Đại diện: <strong>{dossier.common.partyB.rep}</strong> ({dossier.common.partyB.title})</p>
-                  <p><strong>2. Bên tiếp nhận (Bên A):</strong> {dossier.common.partyA.name} - Đại diện: <strong>{dossier.common.partyA.rep}</strong> ({dossier.common.partyA.title})</p>
-                </div>
+                <EditableA4Block
+                  blockKey="intro"
+                  defaultText={`Hôm nay, ngày ${formatDateVN(currentDocData.date || dossier.common.contractDate)}, các bên gồm có:
+1. Bên bàn giao (Bên B): ${dossier.common.partyB.name} - Đại diện: ${dossier.common.partyB.rep} (${dossier.common.partyB.title})
+2. Bên tiếp nhận (Bên A): ${dossier.common.partyA.name} - Đại diện: ${dossier.common.partyA.rep} (${dossier.common.partyA.title})`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_intro`]}
+                />
 
                 <div className="font-bold pt-2">I. Danh mục thiết bị bàn giao:</div>
                 {renderDocumentTable()}
 
                 <div className="font-bold pt-2">II. Hồ sơ và tài liệu kỹ thuật bàn giao kèm theo:</div>
-                <p>
-                  1. Bản vẽ sơ đồ công nghệ và hướng dẫn đấu nối thiết bị: 01 bộ.
-                  <br />2. Catalogue kỹ thuật và hướng dẫn vận hành bảo dưỡng: 01 bộ.
-                  <br />3. Phiếu bảo hành chính hãng của nhà sản xuất: Đầy đủ theo thiết bị.
-                  <br />4. Chứng nhận chất lượng xuất xưởng CO, CQ: 01 bản sao y.
-                </p>
+                <EditableA4Block
+                  blockKey="documents"
+                  defaultText={`1. Bản vẽ sơ đồ công nghệ và hướng dẫn đấu nối thiết bị: 01 bộ.
+2. Catalogue kỹ thuật và hướng dẫn vận hành bảo dưỡng: 01 bộ.
+3. Phiếu bảo hành chính hãng của nhà sản xuất: Đầy đủ theo thiết bị.
+4. Chứng nhận chất lượng xuất xưởng CO, CQ: 01 bản sao y.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_documents`]}
+                />
 
                 <div className="font-bold pt-2">III. Kết luận:</div>
-                <p>
-                  Hai bên thống nhất bàn giao toàn bộ thiết bị và hồ sơ kỹ thuật nêu trên. Thiết bị được tập kết đồng bộ, an toàn tại mặt bằng công trình, sẵn sàng cho công tác lắp đặt và đấu nối kỹ thuật./.
-                </p>
+                <EditableA4Block
+                  blockKey="conclusion"
+                  defaultText={`Hai bên thống nhất bàn giao toàn bộ thiết bị và hồ sơ kỹ thuật nêu trên. Thiết bị được tập kết đồng bộ, an toàn tại mặt bằng công trình, sẵn sàng cho công tác lắp đặt và đấu nối kỹ thuật./.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_conclusion`]}
+                  tag="p"
+                />
               </div>
 
               <div className="dossier-sign-grid grid grid-cols-2 gap-8 text-center mt-8 pt-4 break-inside-avoid">
@@ -1310,35 +1446,49 @@ export const DossierTab: React.FC = () => {
               </div>
 
               <div className="space-y-2 text-justify">
-                <p>- Căn cứ Hợp đồng kinh tế số: {dossier.common.contractNo} ngày {formatDateVN(dossier.common.contractDate)};</p>
-                <p>- Căn cứ hồ sơ thiết kế kỹ thuật và quy chuẩn thi công cơ điện hiện hành;</p>
-                <p>- Căn cứ kết quả kiểm tra lắp đặt và chạy thử thực tế tại công trình {dossier.common.location}.</p>
+                <EditableA4Block
+                  blockKey="basis"
+                  defaultText={`- Căn cứ Hợp đồng kinh tế số: ${dossier.common.contractNo} ngày ${formatDateVN(dossier.common.contractDate)};
+- Căn cứ hồ sơ thiết kế kỹ thuật và quy chuẩn thi công cơ điện hiện hành;
+- Căn cứ kết quả kiểm tra lắp đặt và chạy thử thực tế tại công trình ${dossier.common.location}.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_basis`]}
+                />
 
-                <p className="pt-2">
-                  Thời gian nghiệm thu: Bắt đầu từ {currentDocData.acceptanceTime || '14 giờ 30 phút'} ngày {formatDateVN(currentDocData.date || dossier.common.contractDate)}.
-                </p>
-                <div className="my-2 space-y-1">
-                  <p><strong>1. Đại diện Bên A (Chủ đầu tư / Bên mua):</strong> {dossier.common.partyA.name}</p>
-                  <p className="pl-4">- Ông/Bà: <strong>{dossier.common.partyA.rep}</strong> &nbsp;&nbsp;&nbsp;&nbsp; Chức vụ: {dossier.common.partyA.title}</p>
-                  <p><strong>2. Đại diện Bên B (Đơn vị cung cấp &amp; thi công):</strong> {dossier.common.partyB.name}</p>
-                  <p className="pl-4">- Ông/Bà: <strong>{dossier.common.partyB.rep}</strong> &nbsp;&nbsp;&nbsp;&nbsp; Chức vụ: {dossier.common.partyB.title}</p>
-                </div>
+                <EditableA4Block
+                  blockKey="intro"
+                  defaultText={`Thời gian nghiệm thu: Bắt đầu từ ${currentDocData.acceptanceTime || '14 giờ 30 phút'} ngày ${formatDateVN(currentDocData.date || dossier.common.contractDate)}.
+1. Đại diện Bên A (Chủ đầu tư / Bên mua): ${dossier.common.partyA.name} - Ông/Bà: ${dossier.common.partyA.rep} (${dossier.common.partyA.title})
+2. Đại diện Bên B (Đơn vị cung cấp & thi công): ${dossier.common.partyB.name} - Ông/Bà: ${dossier.common.partyB.rep} (${dossier.common.partyB.title})`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_intro`]}
+                />
 
                 <div className="font-bold pt-2">I. Nội dung kiểm tra và nghiệm thu công tác lắp đặt:</div>
-                <p>
-                  1. Kiểm tra vị trí lắp đặt, kết cấu giá đỡ, bệ máy và liên kết cơ khí: Đúng vị trí thiết kế, chắc chắn.
-                  <br />2. Kiểm tra đấu nối đường ống công nghệ và hệ thống điện động lực/điều khiển: Kín khít, an toàn, có hệ thống tiếp địa chống giật.
-                  <br />3. Chạy thử không tải và chạy thử có tải liên tục: Thiết bị vận hành ổn định, độ ồn và độ rung nằm trong giới hạn tiêu chuẩn cho phép.
-                </p>
+                <EditableA4Block
+                  blockKey="content"
+                  defaultText={`1. Kiểm tra vị trí lắp đặt, kết cấu giá đỡ, bệ máy và liên kết cơ khí: Đúng vị trí thiết kế, chắc chắn.
+2. Kiểm tra đấu nối đường ống công nghệ và hệ thống điện động lực/điều khiển: Kín khít, an toàn, có hệ thống tiếp địa chống giật.
+3. Chạy thử không tải và chạy thử có tải liên tục: Thiết bị vận hành ổn định, độ ồn và độ rung nằm trong giới hạn tiêu chuẩn cho phép.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_content`]}
+                />
 
                 <div className="font-bold pt-2">II. Danh mục thiết bị được nghiệm thu lắp đặt:</div>
                 {renderDocumentTable()}
 
                 <div className="font-bold pt-2">III. Đánh giá chất lượng và Kết luận:</div>
-                <p>
-                  - Đánh giá: Công tác cung cấp và lắp đặt thiết bị được thực hiện đúng quy trình kỹ thuật, đạt yêu cầu thẩm mỹ và an toàn vận hành.
-                  <br />- Kết luận: {currentDocData.conclusion || 'Hai bên thống nhất nghiệm thu công tác lắp đặt và chạy thử thiết bị, đồng ý cho phép chuyển sang giai đoạn vận hành liên động thử nghiệm và nghiệm thu hoàn thành đưa vào sử dụng chính thức./.'}
-                </p>
+                <EditableA4Block
+                  blockKey="conclusion"
+                  defaultText={`- Đánh giá: Công tác cung cấp và lắp đặt thiết bị được thực hiện đúng quy trình kỹ thuật, đạt yêu cầu thẩm mỹ và an toàn vận hành.
+- Kết luận: ${currentDocData.conclusion || 'Hai bên thống nhất nghiệm thu công tác lắp đặt và chạy thử thiết bị, đồng ý cho phép chuyển sang giai đoạn vận hành liên động thử nghiệm và nghiệm thu hoàn thành đưa vào sử dụng chính thức./.'}`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_conclusion`]}
+                />
               </div>
 
               <div className="dossier-sign-grid grid grid-cols-2 gap-8 text-center mt-8 pt-4 break-inside-avoid">
@@ -1372,32 +1522,51 @@ export const DossierTab: React.FC = () => {
               </div>
 
               <div className="space-y-2 text-justify">
-                <p>- Căn cứ Hợp đồng kinh tế số: {dossier.common.contractNo} ngày {formatDateVN(dossier.common.contractDate)};</p>
-                <p>- Căn cứ Biên bản nghiệm thu lắp đặt và chạy thử thiết bị ngày {formatDateVN(dossier.common.contractDate)};</p>
-                <p>- Căn cứ kết quả vận hành ổn định và đạt tiêu chuẩn chất lượng tại công trình {dossier.common.location}.</p>
+                <EditableA4Block
+                  blockKey="basis"
+                  defaultText={`- Căn cứ Hợp đồng kinh tế số: ${dossier.common.contractNo} ngày ${formatDateVN(dossier.common.contractDate)};
+- Căn cứ Biên bản nghiệm thu lắp đặt và chạy thử thiết bị ngày ${formatDateVN(dossier.common.contractDate)};
+- Căn cứ kết quả vận hành ổn định và đạt tiêu chuẩn chất lượng tại công trình ${dossier.common.location}.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_basis`]}
+                />
 
-                <p className="pt-2">Hôm nay, ngày {formatDateVN(currentDocData.date || dossier.common.contractDate)}, tại công trình. Chúng tôi gồm có:</p>
-                <div className="my-2 space-y-1">
-                  <p><strong>1. Đại diện Bên A (Chủ đầu tư):</strong> {dossier.common.partyA.name} - Đại diện: <strong>{dossier.common.partyA.rep}</strong> ({dossier.common.partyA.title})</p>
-                  <p><strong>2. Đại diện Bên B (Đơn vị thi công):</strong> {dossier.common.partyB.name} - Đại diện: <strong>{dossier.common.partyB.rep}</strong> ({dossier.common.partyB.title})</p>
-                </div>
+                <EditableA4Block
+                  blockKey="intro"
+                  defaultText={`Hôm nay, ngày ${formatDateVN(currentDocData.date || dossier.common.contractDate)}, tại công trình. Chúng tôi gồm có:
+1. Đại diện Bên A (Chủ đầu tư): ${dossier.common.partyA.name} - Đại diện: ${dossier.common.partyA.rep} (${dossier.common.partyA.title})
+2. Đại diện Bên B (Đơn vị thi công): ${dossier.common.partyB.name} - Đại diện: ${dossier.common.partyB.rep} (${dossier.common.partyB.title})`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_intro`]}
+                  className="pt-2"
+                />
 
                 <div className="font-bold pt-2">I. Đánh giá công việc hoàn thành:</div>
-                <p>
-                  1. Về khối lượng: Bên B đã hoàn thành 100% khối lượng công việc, cung cấp và lắp đặt đầy đủ toàn bộ thiết bị theo Hợp đồng số {dossier.common.contractNo}.
-                  <br />2. Về chất lượng: Toàn bộ hệ thống máy móc thiết bị vận hành êm, đạt đầy đủ các thông số công suất và kỹ thuật cam kết, đảm bảo an toàn lao động và vệ sinh môi trường.
-                  <br />3. Về hồ sơ tài liệu: Bên B đã bàn giao đầy đủ chứng từ xuất xưởng, hướng dẫn vận hành và phiếu bảo hành chính hãng cho Bên A.
-                </p>
+                <EditableA4Block
+                  blockKey="evaluation"
+                  defaultText={`1. Về khối lượng: Bên B đã hoàn thành 100% khối lượng công việc, cung cấp và lắp đặt đầy đủ toàn bộ thiết bị theo Hợp đồng số ${dossier.common.contractNo}.
+2. Về chất lượng: Toàn bộ hệ thống máy móc thiết bị vận hành êm, đạt đầy đủ các thông số công suất và kỹ thuật cam kết, đảm bảo an toàn lao động và vệ sinh môi trường.
+3. Về hồ sơ tài liệu: Bên B đã bàn giao đầy đủ chứng từ xuất xưởng, hướng dẫn vận hành và phiếu bảo hành chính hãng cho Bên A.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_evaluation`]}
+                />
 
                 <div className="font-bold pt-2">II. Chi tiết danh mục thiết bị hoàn thành bàn giao:</div>
                 {renderDocumentTable()}
 
                 <div className="font-bold pt-2">III. Kết luận nghiệm thu bàn giao:</div>
-                <p>
-                  - Hai bên thống nhất nghiệm thu hoàn thành toàn bộ công việc và chính thức bàn giao công trình/thiết bị cho Bên A đưa vào khai thác sử dụng kể từ ngày ký biên bản này.
-                  <br />- Thời hạn bảo hành: {dossier.common.warranty}, bắt đầu tính từ ngày ký biên bản nghiệm thu hoàn thành này.
-                  <br />- Biên bản này là căn cứ pháp lý để hai bên tiến hành thanh lý hợp đồng và quyết toán tài chính./.
-                </p>
+                <EditableA4Block
+                  blockKey="conclusion"
+                  defaultText={`- Hai bên thống nhất nghiệm thu hoàn thành toàn bộ công việc và chính thức bàn giao công trình/thiết bị cho Bên A đưa vào khai thác sử dụng kể từ ngày ký biên bản này.
+- Thời hạn bảo hành: ${dossier.common.warranty}, bắt đầu tính từ ngày ký biên bản nghiệm thu hoàn thành này.
+- Biên bản này là căn cứ pháp lý để hai bên tiến hành thanh lý hợp đồng và quyết toán tài chính./.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_conclusion`]}
+                />
               </div>
 
               <div className="dossier-sign-grid grid grid-cols-2 gap-8 text-center mt-8 pt-4 break-inside-avoid">
@@ -1431,21 +1600,36 @@ export const DossierTab: React.FC = () => {
               </div>
 
               <div className="space-y-2 text-justify">
-                <p>- Căn cứ Hợp đồng kinh tế số: {dossier.common.contractNo} ngày {formatDateVN(dossier.common.contractDate)};</p>
-                <p>- Căn cứ Biên bản nghiệm thu hoàn thành đưa vào sử dụng ngày {formatDateVN(currentDocData.date || dossier.common.contractDate)}.</p>
+                <EditableA4Block
+                  blockKey="basis"
+                  defaultText={`- Căn cứ Hợp đồng kinh tế số: ${dossier.common.contractNo} ngày ${formatDateVN(dossier.common.contractDate)};
+- Căn cứ Biên bản nghiệm thu hoàn thành đưa vào sử dụng ngày ${formatDateVN(currentDocData.date || dossier.common.contractDate)}.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_basis`]}
+                />
 
-                <p className="pt-2">Hôm nay, ngày {formatDateVN(currentDocData.date || dossier.common.contractDate)}, tại {dossier.common.location}. Hai bên gồm có:</p>
-                <div className="my-2 space-y-1">
-                  <p><strong>1. Bên A:</strong> {dossier.common.partyA.name} - Đại diện: <strong>{dossier.common.partyA.rep}</strong> ({dossier.common.partyA.title})</p>
-                  <p><strong>2. Bên B:</strong> {dossier.common.partyB.name} - Đại diện: <strong>{dossier.common.partyB.rep}</strong> ({dossier.common.partyB.title})</p>
-                </div>
-
-                <p>Hai bên cùng nhau thống nhất ký biên bản thanh lý hợp đồng kinh tế với các nội dung chi tiết sau:</p>
+                <EditableA4Block
+                  blockKey="intro"
+                  defaultText={`Hôm nay, ngày ${formatDateVN(currentDocData.date || dossier.common.contractDate)}, tại ${dossier.common.location}. Hai bên gồm có:
+1. Bên A: ${dossier.common.partyA.name} - Đại diện: ${dossier.common.partyA.rep} (${dossier.common.partyA.title})
+2. Bên B: ${dossier.common.partyB.name} - Đại diện: ${dossier.common.partyB.rep} (${dossier.common.partyB.title})
+Hai bên cùng nhau thống nhất ký biên bản thanh lý hợp đồng kinh tế với các nội dung chi tiết sau:`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_intro`]}
+                  className="pt-2"
+                />
 
                 <div className="font-bold pt-2">Điều 1. Nội dung công việc thực hiện</div>
-                <p>
-                  Bên B đã hoàn thành toàn bộ công tác cung cấp và lắp đặt thiết bị cho Bên A theo đúng nội dung và yêu cầu kỹ thuật quy định trong Hợp đồng số {dossier.common.contractNo}. Toàn bộ công việc đã được nghiệm thu bàn giao đưa vào sử dụng.
-                </p>
+                <EditableA4Block
+                  blockKey="article1"
+                  defaultText={`Bên B đã hoàn thành toàn bộ công tác cung cấp và lắp đặt thiết bị cho Bên A theo đúng nội dung và yêu cầu kỹ thuật quy định trong Hợp đồng số ${dossier.common.contractNo}. Toàn bộ công việc đã được nghiệm thu bàn giao đưa vào sử dụng.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_article1`]}
+                  tag="p"
+                />
 
                 <div className="font-bold pt-2">Điều 2. Quyết toán giá trị hợp đồng</div>
                 <div className="pl-4 space-y-1">
@@ -1461,19 +1645,34 @@ export const DossierTab: React.FC = () => {
                 </div>
 
                 <div className="font-bold pt-2">Điều 3. Phương thức và thời hạn thanh toán số tiền còn lại</div>
-                <p>
-                  Bên A có trách nhiệm thanh toán dứt điểm số tiền còn lại là <strong>{money(currentDocData.remainingAmount ?? (grandTotal - Math.round((grandTotal * 30) / 100)))}</strong> đồng bằng hình thức chuyển khoản vào tài khoản ngân hàng của Bên B trong vòng {currentDocData.paymentDays || '05'} ngày làm việc kể từ ngày ký biên bản thanh lý này và nhận hóa đơn tài chính hợp lệ.
-                </p>
+                <EditableA4Block
+                  blockKey="article3"
+                  defaultText={`Bên A có trách nhiệm thanh toán dứt điểm số tiền còn lại là ${money(currentDocData.remainingAmount ?? (grandTotal - Math.round((grandTotal * 30) / 100)))} đồng bằng hình thức chuyển khoản vào tài khoản ngân hàng của Bên B trong vòng ${currentDocData.paymentDays || '05'} ngày làm việc kể từ ngày ký biên bản thanh lý này và nhận hóa đơn tài chính hợp lệ.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_article3`]}
+                  tag="p"
+                />
 
                 <div className="font-bold pt-2">Điều 4. Trách nhiệm bảo hành sau thanh lý</div>
-                <p>
-                  Sau khi thanh lý hợp đồng, nghĩa vụ bảo hành của Bên B đối với toàn bộ thiết bị vẫn tiếp tục có hiệu lực theo thời hạn {dossier.common.warranty} được quy định tại Hợp đồng kinh tế số {dossier.common.contractNo}.
-                </p>
+                <EditableA4Block
+                  blockKey="article4"
+                  defaultText={`Sau khi thanh lý hợp đồng, nghĩa vụ bảo hành của Bên B đối với toàn bộ thiết bị vẫn tiếp tục có hiệu lực theo thời hạn ${dossier.common.warranty} được quy định tại Hợp đồng kinh tế số ${dossier.common.contractNo}.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_article4`]}
+                  tag="p"
+                />
 
                 <div className="font-bold pt-2">Điều 5. Hiệu lực thanh lý</div>
-                <p>
-                  Hai bên xác nhận không còn bất kỳ tranh chấp, khiếu nại nào liên quan đến Hợp đồng số {dossier.common.contractNo}. Ngay sau khi Bên A hoàn tất nghĩa vụ thanh toán dứt điểm số tiền nêu tại Điều 2, Hợp đồng kinh tế số {dossier.common.contractNo} chính thức hết hiệu lực pháp lý./.
-                </p>
+                <EditableA4Block
+                  blockKey="article5"
+                  defaultText={`Hai bên xác nhận không còn bất kỳ tranh chấp, khiếu nại nào liên quan đến Hợp đồng số ${dossier.common.contractNo}. Ngay sau khi Bên A hoàn tất nghĩa vụ thanh toán dứt điểm số tiền nêu tại Điều 2, Hợp đồng kinh tế số ${dossier.common.contractNo} chính thức hết hiệu lực pháp lý./.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_article5`]}
+                  tag="p"
+                />
               </div>
 
               <div className="dossier-sign-grid grid grid-cols-2 gap-8 text-center mt-8 pt-4 break-inside-avoid">
@@ -1507,22 +1706,36 @@ export const DossierTab: React.FC = () => {
               </div>
 
               <div className="space-y-3 text-justify">
-                <p>
-                  <strong>Kính gửi:</strong> Ban Giám đốc và Bộ phận Kế toán – Tài chính của <strong>{dossier.common.partyA.name}</strong>
-                </p>
+                <EditableA4Block
+                  blockKey="recipient"
+                  defaultText={`Kính gửi: Ban Giám đốc và Bộ phận Kế toán – Tài chính của ${dossier.common.partyA.name}`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_recipient`]}
+                  tag="p"
+                  className="font-bold"
+                />
 
-                <p>- Căn cứ Hợp đồng kinh tế số: {dossier.common.contractNo} ký ngày {formatDateVN(dossier.common.contractDate)};</p>
-                <p>- Căn cứ Biên bản nghiệm thu hoàn thành đưa vào sử dụng ngày {formatDateVN(currentDocData.date || dossier.common.contractDate)};</p>
-                <p>- Căn cứ Biên bản thanh lý hợp đồng ngày {formatDateVN(currentDocData.date || dossier.common.contractDate)};</p>
-                <p>- Căn cứ Hóa đơn GTGT số {currentDocData.invoiceNo || '0000123'} ngày {formatDateVN(currentDocData.invoiceDate || dossier.common.contractDate)} do {dossier.common.partyB.name} phát hành.</p>
+                <EditableA4Block
+                  blockKey="basis"
+                  defaultText={`- Căn cứ Hợp đồng kinh tế số: ${dossier.common.contractNo} ký ngày ${formatDateVN(dossier.common.contractDate)};
+- Căn cứ Biên bản nghiệm thu hoàn thành đưa vào sử dụng ngày ${formatDateVN(currentDocData.date || dossier.common.contractDate)};
+- Căn cứ Biên bản thanh lý hợp đồng ngày ${formatDateVN(currentDocData.date || dossier.common.contractDate)};
+- Căn cứ Hóa đơn GTGT số ${currentDocData.invoiceNo || '0000123'} ngày ${formatDateVN(currentDocData.invoiceDate || dossier.common.contractDate)} do ${dossier.common.partyB.name} phát hành.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_basis`]}
+                />
 
-                <p className="pt-1">
-                  Đến nay, Công ty chúng tôi ({dossier.common.partyB.name}) đã hoàn thành toàn bộ khối lượng công tác cung cấp, lắp đặt và bàn giao hệ thống thuộc dự án <em>{dossier.common.workTitle || dossier.common.project}</em>.
-                </p>
-
-                <p>
-                  Kính đề nghị Quý Công ty xem xét và giải ngân thanh toán số tiền quyết toán còn lại của hợp đồng cho chúng tôi theo bảng kê chi tiết sau:
-                </p>
+                <EditableA4Block
+                  blockKey="intro"
+                  defaultText={`Đến nay, Công ty chúng tôi (${dossier.common.partyB.name}) đã hoàn thành toàn bộ khối lượng công tác cung cấp, lắp đặt và bàn giao hệ thống thuộc dự án ${dossier.common.workTitle || dossier.common.project}.
+Kính đề nghị Quý Công ty xem xét và giải ngân thanh toán số tiền quyết toán còn lại của hợp đồng cho chúng tôi theo bảng kê chi tiết sau:`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_intro`]}
+                  className="pt-1"
+                />
 
                 <div className="pl-4 space-y-1 my-2">
                   <p>1. Tổng giá trị nghiệm thu quyết toán hợp đồng: <strong>{money(grandTotal)}</strong> đồng.</p>
@@ -1544,10 +1757,15 @@ export const DossierTab: React.FC = () => {
                   </div>
                 </div>
 
-                <p className="pt-1">
-                  <em>Hồ sơ gửi kèm: 01 bản chính Biên bản nghiệm thu hoàn thành, 01 bản chính Biên bản thanh lý hợp đồng và 01 bản sao Hóa đơn GTGT.</em>
-                </p>
-                <p>Kính mong Quý Công ty sớm xem xét và thanh toán đúng hạn. Trân trọng cảm ơn!./.</p>
+                <EditableA4Block
+                  blockKey="conclusion"
+                  defaultText={`Hồ sơ gửi kèm: 01 bản chính Biên bản nghiệm thu hoàn thành, 01 bản chính Biên bản thanh lý hợp đồng và 01 bản sao Hóa đơn GTGT.
+Kính mong Quý Công ty sớm xem xét và thanh toán đúng hạn. Trân trọng cảm ơn!./.`}
+                  isEditing={isInlineEditing}
+                  onSave={handleCustomTextChange}
+                  savedText={dossier.customTexts?.[`${activeType}_conclusion`]}
+                  className="pt-1 italic"
+                />
               </div>
 
               {/* 3 signatures for payment request according to accounting standards */}

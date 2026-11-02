@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AutoResizeTextarea } from '../common/AutoResizeTextarea';
+import { DecimalInput } from '../common/DecimalInput';
 import {
   Coins,
   Plus,
@@ -349,17 +350,11 @@ export const PriceCatalogTab: React.FC = () => {
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 text-right">
                       Hệ số lãi
                     </label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={formatDecimalInput(p.profitFactor)}
-                      onInput={(e) => normalizeCommaDecimal(e.currentTarget)}
-                      onChange={(e) =>
-                        updatePriceItem(p.id, {
-                          profitFactor: parseDecimalInput(e.target.value),
-                        })
-                      }
+                    <DecimalInput
+                      value={p.profitFactor}
+                      onChange={(val) => updatePriceItem(p.id, { profitFactor: val })}
                       className="w-full min-h-[40px] text-right p-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-600 outline-none font-mono font-medium text-slate-800"
+                      placeholder="1,2"
                     />
                   </div>
 
@@ -469,17 +464,11 @@ export const PriceCatalogTab: React.FC = () => {
 
                       {/* Hệ số */}
                       <td className="p-2.5 text-right">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={formatDecimalInput(p.profitFactor)}
-                          onInput={(e) => normalizeCommaDecimal(e.currentTarget)}
-                          onChange={(e) =>
-                            updatePriceItem(p.id, {
-                              profitFactor: parseDecimalInput(e.target.value),
-                            })
-                          }
+                        <DecimalInput
+                          value={p.profitFactor}
+                          onChange={(val) => updatePriceItem(p.id, { profitFactor: val })}
                           className="w-full min-h-[36px] p-1 text-right font-mono font-medium text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-200 focus:border-emerald-600 rounded outline-none"
+                          placeholder="1,2"
                         />
                       </td>
 

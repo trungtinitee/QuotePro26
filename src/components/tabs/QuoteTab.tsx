@@ -1,6 +1,7 @@
 import React, { useRef, useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AutoResizeTextarea } from '../common/AutoResizeTextarea';
+import { DecimalInput } from '../common/DecimalInput';
 import {
   Building2,
   FileSpreadsheet,
@@ -489,15 +490,11 @@ export const QuoteTab: React.FC = () => {
               Thuế VAT (%)
             </label>
             <div className="relative">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={formatDecimalInput(currentQuote.vat)}
-                onInput={(e) => normalizeCommaDecimal(e.currentTarget)}
-                onChange={(e) =>
-                  updateCurrentQuote({ vat: parseDecimalInput(e.target.value) })
-                }
+              <DecimalInput
+                value={currentQuote.vat}
+                onChange={(val) => updateCurrentQuote({ vat: val })}
                 className="w-full px-3 py-2 pr-7 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-600 outline-none font-mono text-right font-medium min-h-[40px]"
+                placeholder="10"
               />
               <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">
                 %
@@ -989,15 +986,11 @@ export const QuoteTab: React.FC = () => {
                       <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 text-center">
                         Số lượng
                       </label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={formatDecimalInput(row.qty)}
-                        onInput={(e) => normalizeCommaDecimal(e.currentTarget)}
-                        onChange={(e) =>
-                          updateQuoteRow(row.id, { qty: parseDecimalInput(e.target.value) })
-                        }
+                      <DecimalInput
+                        value={row.qty}
+                        onChange={(val) => updateQuoteRow(row.id, { qty: val })}
                         className="w-full min-h-[40px] text-center p-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-600 outline-none font-mono font-bold text-slate-800"
+                        placeholder="1"
                       />
                     </div>
 
@@ -1328,15 +1321,11 @@ export const QuoteTab: React.FC = () => {
 
                       {/* Số lượng */}
                       <td className="p-2.5 text-center">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={formatDecimalInput(row.qty)}
-                          onInput={(e) => normalizeCommaDecimal(e.currentTarget)}
-                          onChange={(e) =>
-                            updateQuoteRow(row.id, { qty: parseDecimalInput(e.target.value) })
-                          }
+                        <DecimalInput
+                          value={row.qty}
+                          onChange={(val) => updateQuoteRow(row.id, { qty: val })}
                           className="w-full text-center p-1 text-xs bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-200 focus:border-emerald-600 rounded outline-none font-mono font-semibold text-slate-800 min-h-[36px]"
+                          placeholder="1"
                         />
                       </td>
 

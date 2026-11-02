@@ -37,16 +37,18 @@ const MainLayout: React.FC = () => {
       <Header />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5 pb-28 md:pb-12 print:p-0 print:m-0">
-        <div className="print:hidden">
-          {activeTab === 'quote' && <QuoteTab />}
-          {activeTab === 'analysis' && <AnalysisTab />}
-          {activeTab === 'price' && <PriceCatalogTab />}
-          {activeTab === 'dossier' && <DossierTab />}
-        </div>
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5 pb-28 md:pb-12 print:p-0 print:m-0 print:max-w-none print:w-full">
+        {activeTab === 'quote' && <div className="print:hidden"><QuoteTab /></div>}
+        {activeTab === 'analysis' && <div className="print:hidden"><AnalysisTab /></div>}
+        {activeTab === 'price' && <div className="print:hidden"><PriceCatalogTab /></div>}
+        {activeTab === 'dossier' && (
+          <div className="print:block print:w-full print:m-0 print:p-0">
+            <DossierTab />
+          </div>
+        )}
 
-        {/* Dedicated Print / PDF Layout */}
-        <PrintQuoteView />
+        {/* Dedicated Print / PDF Layout for Quote Tab */}
+        {activeTab !== 'dossier' && <PrintQuoteView />}
       </main>
 
       {/* Desktop Footer */}
